@@ -29,6 +29,7 @@ var vNormAttribLoc;
 var texCoordAttribLoc;
 var samplerLoc;
 var alphaValue;
+var temp = vec3.create();
 
 /* shader parameter locations */
 var vPosAttribLoc; // where to put position for vertex shader
@@ -106,7 +107,7 @@ function handleKeyDown(event) {
     } // end rotate model
     
     // set up needed view params
-    var lookAt = vec3.create(), viewRight = vec3.create(), temp = vec3.create(); // lookat, right & temp vectors
+    var lookAt = vec3.create(), viewRight = vec3.create(); // lookat, right & temp vectors
     lookAt = vec3.normalize(lookAt,vec3.subtract(temp,Center,Eye)); // get lookat vector
     viewRight = vec3.normalize(viewRight,vec3.cross(temp,lookAt,Up)); // get view right vector
     
@@ -115,6 +116,14 @@ function handleKeyDown(event) {
     handleKeyDown.modelOn = handleKeyDown.modelOn == undefined ? null : handleKeyDown.modelOn; // nothing selected initially
 
     switch (event.code) {
+        case "Digit1":
+            if (event.shiftKey) { // Check if Shift key is pressed along with "1"
+                console.log("int asdf");
+                loadModels("makeItOwn.json");
+                setupWebGL("stars.jpg");
+                renderModels();
+            }
+            break;
         
         // model selection
         case "Space": 
@@ -166,8 +175,9 @@ function handleKeyDown(event) {
             } // end if shift not pressed
             break;
         case "KeyQ": // translate view up, rotate counterclockwise with shift
-            if (event.getModifierState("Shift"))
+            if (event.getModifierState("Shift")) {
                 Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,-viewDelta)));
+            }
             else {
                 Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,viewDelta));
                 Center = vec3.add(Center,Center,vec3.scale(temp,Up,viewDelta));
@@ -229,18 +239,13 @@ function handleKeyDown(event) {
                 vec3.set(inputTriangles[whichTriSet].translation,0,0,0);
                 vec3.set(inputTriangles[whichTriSet].xAxis,1,0,0);
                 vec3.set(inputTriangles[whichTriSet].yAxis,0,1,0);
-            } // end for all triangle sets
-            for (var whichEllipsoid=0; whichEllipsoid<numEllipsoids; whichEllipsoid++) {
-                vec3.set(inputEllipsoids[whichEllipsoid].translation,0,0,0);
-                vec3.set(inputEllipsoids[whichTriSet].xAxis,1,0,0);
-                vec3.set(inputEllipsoids[whichTriSet].yAxis,0,1,0);
-            } // end for all ellipsoids
+            }
             break;
     } // end switch
 } // end handleKeyDown
 
 // set up the webGL environment
-function setupWebGL() {
+function setupWebGL(file) {
     
     // Set up keys
     document.onkeydown = handleKeyDown; // call this when key pressed
@@ -251,10 +256,10 @@ function setupWebGL() {
       imageContext = imageCanvas.getContext("2d"); 
       var bkgdImage = new Image(); 
       bkgdImage.crossOrigin = "Anonymous";
-      bkgdImage.src = "https://ncsucgclass.github.io/prog3/sky.jpg";
+      bkgdImage.src = file;
       bkgdImage.onload = function(){
-          var iw = bkgdImage.width, ih = bkgdImage.height;
-          imageContext.drawImage(bkgdImage,0,0,iw,ih,0,0,cw,ch);   
+        var iw = bkgdImage.width, ih = bkgdImage.height;
+        imageContext.drawImage(bkgdImage,0,0,iw,ih,0,0,cw,ch);   
      }
 
      
@@ -314,9 +319,9 @@ function loadTexture(texturePath) {
 }
 
 // read models in, load them into webgl buffers
-function loadModels() {
+function loadModels(file) {
     
-    inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles"); // read in the triangle data
+    inputTriangles = getJSONFile(file,"triangles"); // read in the triangle data
 
     try {
         if (inputTriangles == String.null)
@@ -376,6 +381,7 @@ function loadModels() {
                 gl.bindBuffer(gl.ARRAY_BUFFER,textureBuffers[whichSet]); // activate that buffer
                 gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(inputTriangles[whichSet].glTextures),gl.STATIC_DRAW); // data in
 
+                console.log(inputTriangles[whichSet].material.texture);
                 inputTriangles[whichSet].texture = loadTexture(inputTriangles[whichSet].material.texture);
             
                 // set up the triangle index array, adjusting indices across sets
@@ -392,8 +398,12 @@ function loadModels() {
                 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(inputTriangles[whichSet].glTriangles),gl.STATIC_DRAW); // data in
 
             } // end for each triangle set 
+            // console.log(viewDelta);
+            viewDelta = vec3.length(vec3.subtract(temp,maxCorner,minCorner)) / 100;
+            // console.log(viewDelta);
         
         } // end if triangle file loaded
+        // viewDelta = vec3.length(vec3.subtract(temp,maxCorner,minCorner)) / 100;
     }// end try 
     
     catch(e) {
@@ -603,7 +613,7 @@ function renderModels() {
     mat4.multiply(pvMatrix,pvMatrix,pMatrix); // projection
     mat4.multiply(pvMatrix,pvMatrix,vMatrix); // projection * view
 
-    gl.depthMask(false);
+    // gl.depthMask(false);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
 
@@ -652,8 +662,8 @@ function renderModels() {
 
 function main() {
   
-  setupWebGL(); // set up the webGL environment
-  loadModels(); // load in the models from tri file
+  setupWebGL("sky.jpg"); // set up the webGL environment
+  loadModels(INPUT_TRIANGLES_URL); // load in the models from tri file
   setupShaders(); // setup the webGL shaders
   renderModels(); // draw the triangles using webGL
   
